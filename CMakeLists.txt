@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(lua)
 
 set(LUA_VERSION "5.3.5" CACHE STRING "Version of Lua to be built.")
+set(LUA_PLATFORM "" CACHE STRING "Plafrom of Lua built for.")
+
+if(NOT LUA_PLATFORM)
+  string(TOLOWER ${CPACK_SYSTEM_NAME} LUA_PLATFORM)
+endif()
+
+#
+# Download and unpack lua packages.
+#
 
 function(fetch_lua VERSION OUTPUT)
   string(REPLACE "." "_" VERSION_ID "${VERSION}")
@@ -46,3 +55,71 @@ execute_process(
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${TARBALL}
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+#
+# Setup lua projects.
+#
+
+function(version_to_abi VERSION OUTPUT)
+  string(SUBSTRING ${VERSION} 0 3 ABI)
+  string(REPLACE "." "" ABI "${ABI}")
+  set(${OUTPUT} "${ABI}" PARENT_SCOPE)
+endfunction(version_to_abi)
+
+# add_lua(5.1.5 path/to/lua)
+function(add_lua VERSION ROOT OUTPUT)
+  version_to_abi(${VERSION} ABI)
+
+  message("called add_lua(${VERSION} ${ROOT})")
+  
+  include(cmake/lua-${ABI}.cmake) # uses ROOT
+  if (MSVC)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  endif()
+
+  # Shared library
+  set(LIBNAME lua${ABI})
+  add_library(${LIBNAME} SHARED ${LIBRARY_FILES})
+  if (MSVC)
+    target_compile_definitions(${LIBNAME} PRIVATE -D_CRT_SECURE_NO_WARNINGS -DLUA_BUILD_AS_DLL)
+    target_compile_options(${LIBNAME} PRIVATE /wd4334)
+  else()
+    target_compile_options(${LIBNAME} PRIVATE -Wno-deprecated-declarations -Wno-empty-body)
+  endif()
+
+  # Lua executable
+  add_executable(lua ${ROOT}/src/lua.c)
+  set_target_properties(lua PROPERTIES OUTPUT_NAME lua)
+  target_link_libraries(lua ${LIBNAME})
+
+  # Luac executable
+  add_executable(luac ${LUAC_FILES})
+  target_link_libraries(luac ${LIBNAME})
+
+  # Install files
+  set(PREFIX "${CMAKE_SOURCE_DIR}/install/${VERSION}")
+  install(
+    TARGETS lua luac ${LIBNAME}
+    RUNTIME DESTINATION "bin"
+    LIBRARY DESTINATION "bin"
+    ARCHIVE DESTINATION "lib"
+  )
+  install(FILES ${LUA_HEADERS} DESTINATION "include")
+  install(DIRECTORY ${ROOT}/doc DESTINATION "doc")
+  install(FILES ${ROOT}/README DESTINATION "doc")
+  set(${OUTPUT} "${PREFIX}" PARENT_SCOPE)
+endfunction(add_lua)
+
+
+add_lua(${LUA_VERSION} ${CMAKE_BINARY_DIR}/lua-${LUA_VERSION} INSTALL_PREFIX)
+
+#
+# Packaging
+#
+
+set(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lua ${LUA_VERSION} binary.")
+set(CPACK_PACKAGE_VERSION ${LUA_VERSION})
+set(CPACK_SYSTEM_NAME "${LUA_PLATFORM}")
+
+include(CPack)

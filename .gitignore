@@ -53,3 +53,4 @@ dkms.conf
 
 /build
 /tarballs
+.DS_Store

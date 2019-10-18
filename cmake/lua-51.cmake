@@ -1,0 +1,45 @@
+set(LIBRARY_FILES
+  ${ROOT}/src/lapi.c
+  ${ROOT}/src/lcode.c
+  ${ROOT}/src/ldebug.c
+  ${ROOT}/src/ldo.c
+  ${ROOT}/src/ldump.c
+  ${ROOT}/src/lfunc.c
+  ${ROOT}/src/lgc.c
+  ${ROOT}/src/llex.c
+  ${ROOT}/src/lmem.c
+  ${ROOT}/src/lobject.c
+  ${ROOT}/src/lopcodes.c
+  ${ROOT}/src/lparser.c
+  ${ROOT}/src/lstate.c
+  ${ROOT}/src/lstring.c
+  ${ROOT}/src/ltable.c
+  ${ROOT}/src/ltm.c
+  ${ROOT}/src/lundump.c
+  ${ROOT}/src/lvm.c
+  ${ROOT}/src/lzio.c
+  ${ROOT}/src/lauxlib.c
+  ${ROOT}/src/lbaselib.c
+  ${ROOT}/src/ldblib.c
+  ${ROOT}/src/liolib.c
+  ${ROOT}/src/lmathlib.c
+  ${ROOT}/src/loslib.c
+  ${ROOT}/src/ltablib.c
+  ${ROOT}/src/lstrlib.c
+  ${ROOT}/src/loadlib.c
+  ${ROOT}/src/linit.c
+  ${ROOT}/src/luaconf.h
+)
+
+set(LUAC_FILES
+  ${ROOT}/src/luac.c
+  ${ROOT}/src/print.c
+)
+
+set(LUA_HEADERS
+  ${ROOT}/etc/lua.hpp
+  ${ROOT}/src/lauxlib.h
+  ${ROOT}/src/lua.h
+  ${ROOT}/src/luaconf.h
+  ${ROOT}/src/lualib.h
+)
