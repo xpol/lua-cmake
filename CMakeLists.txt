@@ -5,7 +5,7 @@ set(LUA_VERSION "5.3.5" CACHE STRING "Version of Lua to be built.")
 set(LUA_PLATFORM "" CACHE STRING "Plafrom of Lua built for.")
 
 if(NOT LUA_PLATFORM)
-  string(TOLOWER ${CPACK_SYSTEM_NAME} LUA_PLATFORM)
+  string(TOLOWER "${CPACK_SYSTEM_NAME}" LUA_PLATFORM)
 endif()
 
 #
