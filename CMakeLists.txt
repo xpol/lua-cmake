@@ -73,32 +73,38 @@ function(add_lua VERSION ROOT OUTPUT)
   message("called add_lua(${VERSION} ${ROOT})")
   
   include(cmake/lua-${ABI}.cmake) # uses ROOT
-  if (MSVC)
+  if(MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
   endif()
 
   # Shared library
-  set(LIBNAME lua${ABI})
-  add_library(${LIBNAME} SHARED ${LIBRARY_FILES})
+  set(LUA_LIB lua${ABI})
+  add_library(${LUA_LIB} SHARED ${LIBRARY_FILES})
   if (MSVC)
-    target_compile_definitions(${LIBNAME} PRIVATE -D_CRT_SECURE_NO_WARNINGS -DLUA_BUILD_AS_DLL)
-    target_compile_options(${LIBNAME} PRIVATE /wd4334)
+    target_compile_definitions(${LUA_LIB} PRIVATE -D_CRT_SECURE_NO_WARNINGS -DLUA_BUILD_AS_DLL)
+    target_compile_options(${LUA_LIB} PRIVATE /wd4334)
   else()
-    target_compile_options(${LIBNAME} PRIVATE -Wno-deprecated-declarations -Wno-empty-body)
+    target_compile_options(${LUA_LIB} PRIVATE -Wno-deprecated-declarations -Wno-empty-body)
+    if(NOT WIN32 OR CYGWIN)
+      target_link_libraries(${LUA_LIB} "m")
+    endif()
   endif()
 
   # Lua executable
   add_executable(lua ${ROOT}/src/lua.c)
   set_target_properties(lua PROPERTIES OUTPUT_NAME lua)
-  target_link_libraries(lua ${LIBNAME})
+  target_link_libraries(lua ${LUA_LIB})
 
   # Luac executable
   add_executable(luac ${LUAC_FILES} ${LIBRARY_FILES})
+  if(NOT WIN32 OR CYGWIN)
+    target_link_libraries(luac "m")
+  endif()
 
   # Install files
   set(PREFIX "${CMAKE_SOURCE_DIR}/install/${VERSION}")
   install(
-    TARGETS lua luac ${LIBNAME}
+    TARGETS lua luac ${LUA_LIB}
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "bin"
     ARCHIVE DESTINATION "lib"
