@@ -93,8 +93,7 @@ function(add_lua VERSION ROOT OUTPUT)
   target_link_libraries(lua ${LIBNAME})
 
   # Luac executable
-  add_executable(luac ${LUAC_FILES})
-  target_link_libraries(luac ${LIBNAME})
+  add_executable(luac ${LUAC_FILES} ${LIBRARY_FILES})
 
   # Install files
   set(PREFIX "${CMAKE_SOURCE_DIR}/install/${VERSION}")
