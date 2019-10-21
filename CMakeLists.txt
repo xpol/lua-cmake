@@ -4,9 +4,49 @@ project(lua)
 set(LUA_VERSION "5.3.5" CACHE STRING "Version of Lua to be built.")
 set(LUA_PLATFORM "" CACHE STRING "Plafrom of Lua built for.")
 
-if(NOT LUA_PLATFORM)
-  string(TOLOWER ${CPACK_SYSTEM_NAME} LUA_PLATFORM)
+if(LUA_PLATFORM STREQUAL "")
+  string(TOLOWER "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}" LUA_PLATFORM)
 endif()
+
+# Platform specific settings
+if(APPLE) # macOS or iOS, watchOS, tvOS (since 3.10.3)
+  set(LUA_USE_MACOSX ON CACHE BOOL "Use macos") # TODO: should support iOS, watchOS, tvOS
+  add_definitions(-DLUA_USE_MACOSX)
+elseif(UNIX)
+  set(LUA_USE_LINUX ON)
+  set(LUA_USE_POSIX ON)
+  add_definitions(-DLUA_USE_LINUX)
+elseif(MINGW OR CYGWIN)
+  set(LUA_USE_POSIX ON)
+  add_definitions(-DLUA_USE_POSIX)
+elseif(WIN32)
+  set(LUA_BUILD_AS_DLL ON)
+  add_definitions(-DLUA_BUILD_AS_DLL)
+else()
+  message("CMake script not configured for ${CMAKE_SYSTEM_NAME}")
+endif()
+
+# Compiler specific settings
+if(MSVC)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
+set(LIBRARIES "")
+function(need_library LIBNAME)
+  find_library(LIBRARY NAMES ${LIBNAME})
+  if(NOT LIBRARY)
+    message(FATAL "Required library not found: {LIBNAME}")
+  endif()
+  list(APPEND LIBRARIES ${LIBRARY})
+endfunction(need_library)
+
+if(LUA_USE_POSIX)
+  need_library("m")
+endif()
+
+if(LUA_USE_LINUX)
+  need_library("dl")
+endif ( )
 
 #
 # Download and unpack lua packages.
@@ -66,6 +106,15 @@ function(version_to_abi VERSION OUTPUT)
   set(${OUTPUT} "${ABI}" PARENT_SCOPE)
 endfunction(version_to_abi)
 
+function(disable_warnings TATGET)
+  if (MSVC)
+    target_compile_options(${TATGET} PRIVATE /wd4334)
+  else()
+    target_compile_options(${TATGET} PRIVATE -Wno-deprecated-declarations -Wno-empty-body)
+  endif()
+endfunction(disable_warnings TATGET)
+
+
 # add_lua(5.1.5 path/to/lua)
 function(add_lua VERSION ROOT OUTPUT)
   version_to_abi(${VERSION} ABI)
@@ -73,33 +122,26 @@ function(add_lua VERSION ROOT OUTPUT)
   message("called add_lua(${VERSION} ${ROOT})")
   
   include(cmake/lua-${ABI}.cmake) # uses ROOT
-  if (MSVC)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-  endif()
 
   # Shared library
-  set(LIBNAME lua${ABI})
-  add_library(${LIBNAME} SHARED ${LIBRARY_FILES})
-  if (MSVC)
-    target_compile_definitions(${LIBNAME} PRIVATE -D_CRT_SECURE_NO_WARNINGS -DLUA_BUILD_AS_DLL)
-    target_compile_options(${LIBNAME} PRIVATE /wd4334)
-  else()
-    target_compile_options(${LIBNAME} PRIVATE -Wno-deprecated-declarations -Wno-empty-body)
-  endif()
+  set(LUA_LIB lua${ABI})
+  add_library(${LUA_LIB} SHARED ${LIBRARY_FILES})
+  target_link_libraries(${LUA_LIB} "${LIBRARIES}")
+  disable_warnings(${LUA_LIB})
 
   # Lua executable
   add_executable(lua ${ROOT}/src/lua.c)
-  set_target_properties(lua PROPERTIES OUTPUT_NAME lua)
-  target_link_libraries(lua ${LIBNAME})
+  target_link_libraries(lua ${LUA_LIB})
 
   # Luac executable
-  add_executable(luac ${LUAC_FILES})
-  target_link_libraries(luac ${LIBNAME})
+  add_executable(luac ${LUAC_FILES} ${LIBRARY_FILES})
+  target_link_libraries(luac "${LIBRARIES}")
+  disable_warnings(luac)
 
   # Install files
   set(PREFIX "${CMAKE_SOURCE_DIR}/install/${VERSION}")
   install(
-    TARGETS lua luac ${LIBNAME}
+    TARGETS lua luac ${LUA_LIB}
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "bin"
     ARCHIVE DESTINATION "lib"
@@ -117,7 +159,8 @@ add_lua(${LUA_VERSION} ${CMAKE_BINARY_DIR}/lua-${LUA_VERSION} INSTALL_PREFIX)
 # Packaging
 #
 
-set(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
+message(STATUS "${CMAKE_SYSTEM_PROCESSOR}")
+set(CPACK_GENERATOR "ZIP")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lua ${LUA_VERSION} binary.")
 set(CPACK_PACKAGE_VERSION ${LUA_VERSION})
 set(CPACK_SYSTEM_NAME "${LUA_PLATFORM}")
